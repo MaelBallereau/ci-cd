@@ -26,6 +26,7 @@ audit:
   script:
     - pip install pip-audit
     - pip-audit
+    
 
 test:
   stage: test
