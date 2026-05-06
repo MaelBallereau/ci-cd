@@ -1,0 +1,6 @@
+fastapi==0.115.12
+uvicorn==0.34.0
+httpx==0.28.1
+pydantic==2.11.3
+# Fix CVE-2024-6345 / PYSEC-2025-49
+setuptools==78.1.1

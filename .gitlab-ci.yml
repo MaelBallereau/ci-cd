@@ -1,0 +1,55 @@
+image: node:22.21.0
+
+stages:
+    - build
+    - test
+    - analyse
+    - docker-build
+    - deploy
+
+before_script:
+    - npm install
+
+build-job:
+    stage: build
+    script:
+        - npm install
+
+test-job:
+    stage: test
+    script:
+        - npm test
+
+analyse-job:
+    stage: analyse
+    script:
+        - npm run test -- --coverage
+
+docker-build-job:
+    stage: docker-build
+    image: docker:latest
+    services:
+        - docker:dind
+    before_script: []
+    script:
+        - docker build -t mon-app:latest .
+        - docker save mon-app:latest -o mon-app.tar
+    artifacts:
+        paths:
+            - mon-app.tar
+    only:
+        - main
+
+deploy-job:
+    stage: deploy
+    image: docker:latest
+    services:
+        - docker:dind
+    before_script: []
+    script:
+        - docker load -i mon-app.tar
+        - docker stop mon-app || true
+        - docker rm mon-app || true
+        - docker run -d --name mon-app -p 3000:3000 mon-app:latest
+    only:
+        - main

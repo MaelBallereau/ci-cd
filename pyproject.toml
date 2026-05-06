@@ -1,0 +1,16 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pip-audit]
+ignore-vuln = [
+    # starlette : dep transitoire de fastapi, patch >= 0.47.2 / 0.49.1
+    # bloqué tant que fastapi ne supporte pas starlette >= 0.47
+    "CVE-2025-54121",
+    "CVE-2025-62727",
+    # wheel : paquet système Debian, hors scope de l'app
+    "CVE-2026-24049",
+]
