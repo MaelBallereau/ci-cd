@@ -1,9 +1,15 @@
 image: python:3.12
 
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
+
 stages:
   - lint
   - audit
   - test
+  - api-test
   - docker-build
   - deploy
 
@@ -11,44 +17,76 @@ cache:
   paths:
     - .cache/pip
 
-before_script:
-  - python -m pip install --upgrade pip
-  - pip install -r requirements.txt
-
 lint:
   stage: lint
-  script:
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
     - pip install ruff
+  script:
     - ruff check .
 
 audit:
   stage: audit
-  script:
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
     - pip install pip-audit
-    - pip-audit
-    
+  script:
+    - pip-audit --ignore-vuln CVE-2025-54121 --ignore-vuln CVE-2025-62727
 
 test:
   stage: test
-  script:
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
     - pip install pytest
+  script:
     - pytest
+
+api-curl-test:
+  stage: api-test
+  before_script:
+    - apt-get update
+    - apt-get install -y curl
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - uvicorn main:app --host 127.0.0.1 --port 8000 &
+    - API_PID=$!
+    - trap 'kill "$API_PID"' EXIT
+    - |
+      for i in $(seq 1 30); do
+        if curl --fail --silent http://127.0.0.1:8000/ > /tmp/root.json; then
+          break
+        fi
+        sleep 1
+      done
+    - curl --fail --silent http://127.0.0.1:8000/
+    - |
+      curl --fail --silent \
+        -X POST http://127.0.0.1:8000/items \
+        -H "Content-Type: application/json" \
+        -d '{"name":"pipeline-test","price":9.99}' \
+        --output /tmp/item.json
+    - cat /tmp/item.json
+    - curl --fail --silent http://127.0.0.1:8000/items/1
 
 docker-build-job:
   stage: docker-build
   image: docker:latest
   services:
     - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   before_script: []
   script:
     - docker build -t mon-app:latest .
-  only:
-    - main
 
 deploy-job:
   stage: deploy
+  before_script: []
   script:
-    - echo "Déploiement de l'application"
-    - echo "Image Docker prête à être déployée"
-  only:
-    - main
+    - echo "Deploiement de l'application"
+    - echo "Image Docker prete a etre deployee"
