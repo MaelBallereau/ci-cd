@@ -1,55 +1,53 @@
-image: node:22.21.0
+image: python:3.12
 
 stages:
-    - build
-    - test
-    - analyse
-    - docker-build
-    - deploy
+  - lint
+  - audit
+  - test
+  - docker-build
+  - deploy
+
+cache:
+  paths:
+    - .cache/pip
 
 before_script:
-    - npm install
+  - python -m pip install --upgrade pip
+  - pip install -r requirements.txt
 
-build-job:
-    stage: build
-    script:
-        - npm install
+lint:
+  stage: lint
+  script:
+    - pip install ruff
+    - ruff check .
 
-test-job:
-    stage: test
-    script:
-        - npm test
+audit:
+  stage: audit
+  script:
+    - pip install pip-audit
+    - pip-audit
 
-analyse-job:
-    stage: analyse
-    script:
-        - npm run test -- --coverage
+test:
+  stage: test
+  script:
+    - pip install pytest
+    - pytest
 
 docker-build-job:
-    stage: docker-build
-    image: docker:latest
-    services:
-        - docker:dind
-    before_script: []
-    script:
-        - docker build -t mon-app:latest .
-        - docker save mon-app:latest -o mon-app.tar
-    artifacts:
-        paths:
-            - mon-app.tar
-    only:
-        - main
+  stage: docker-build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script: []
+  script:
+    - docker build -t mon-app:latest .
+  only:
+    - main
 
 deploy-job:
-    stage: deploy
-    image: docker:latest
-    services:
-        - docker:dind
-    before_script: []
-    script:
-        - docker load -i mon-app.tar
-        - docker stop mon-app || true
-        - docker rm mon-app || true
-        - docker run -d --name mon-app -p 3000:3000 mon-app:latest
-    only:
-        - main
+  stage: deploy
+  script:
+    - echo "Déploiement de l'application"
+    - echo "Image Docker prête à être déployée"
+  only:
+    - main
